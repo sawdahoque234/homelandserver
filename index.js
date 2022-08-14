@@ -30,7 +30,6 @@ async function run() {
     const ordersCollection = database.collection("orders");
     const usersCollection = database.collection("users");
     const reviewsCollection = database.collection("reviews");
-    const payemntCollection = database.collection("payment");
 
     //getproperty
     app.get("/properties", async (req, res) => {
@@ -58,7 +57,28 @@ async function run() {
       const property = await propertyCollection.findOne(query);
       res.json(property);
     });
+    // save user info google login
+    app.put("/users", async (req, res) => {
+      const user = req.body;
+      const filter = { email: user.email };
+      const options = { upsert: true };
+      const doc = { $set: user };
+      const result = await usersCollection.updateOne(filter, doc, options);
+      res.send(result);
+    });
 
+    // insert user by register
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+    //get reviews
+    app.get("/users", async (req, res) => {
+      const cursor = usersCollection.find({});
+      const result = await cursor.toArray();
+      res.send(result);
+    });
     //get allorder
     app.get("/orders", async (req, res) => {
       const cursor = ordersCollection.find({});
@@ -99,17 +119,6 @@ async function run() {
       const result = await reviewsCollection.insertOne(review);
       res.json(result);
     });
-    //post users
-    app.post("/users", async (req, res) => {
-      const result = await usersCollection.insertOne(req.body);
-      res.json(result);
-    });
-    //get allorder
-    app.get("/users", async (req, res) => {
-      const cursor = usersCollection.find({});
-      const users = await cursor.toArray();
-      res.send(users);
-    });
     //delete orders
     app.delete("/users/:id", async (req, res) => {
       const id = req.params.id;
@@ -117,26 +126,25 @@ async function run() {
       const result = await usersCollection.deleteOne(query);
       res.json(result);
     });
-    //put admin
-    app.put("/makeAdmin", async (req, res) => {
-      const filter = { email: req.body.email };
-      const result = await usersCollection.find(filter).toArray();
-      if (result) {
-        const documents = await usersCollection.updateOne(filter, {
-          $set: { role: "admin" },
-        });
-      }
-
+    // make admin
+    app.put("/users/admin", async (req, res) => {
+      const user = req.body;
+      const filter = { email: user.email };
+      const updateDoc = { $set: { role: "admin" } };
+      const result = await usersCollection.updateOne(filter, updateDoc);
       res.json(result);
     });
 
-    //admin check
-
-    app.get("/admin/:email", async (req, res) => {
-      const result = await usersCollection
-        .find({ email: req.params.email })
-        .toArray();
-      res.send(result);
+    // get admin
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let isAdmin = false;
+      if (user?.role === "admin") {
+        isAdmin = true;
+      }
+      res.json({ admin: isAdmin });
     });
 
     //getpaymentid
@@ -154,13 +162,13 @@ async function run() {
 
       const paymentIntent = await stripe.paymentIntents.create({
         currency: "usd",
-        amount: "amount",
+        amount: amount,
         payment_method_types: ["card"],
       });
 
       res.json({ clientSecret: paymentIntent.client_secret });
     });
-    // update order status
+    //updatestatus
     app.put("/orderStatus/update/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: ObjectId(id) };
@@ -170,7 +178,7 @@ async function run() {
       const result = await ordersCollection.updateOne(filter, updateDoc);
       res.json(result);
     });
-    //payment
+
     app.put("/order/:id", async (req, res) => {
       const id = req.params.id;
       const payment = req.body;
