@@ -59,7 +59,8 @@ async function run() {
     });
     // save user info google login
     app.put("/users", async (req, res) => {
-      const user = req.body;
+      const user = req.params;
+
       const filter = { email: user.email };
       const options = { upsert: true };
       const doc = { $set: user };
@@ -69,11 +70,9 @@ async function run() {
 
     // insert user by register
     app.post("/users", async (req, res) => {
-      const user = req.body;
-      const result = await usersCollection.insertOne(user);
+      const result = await usersCollection.insertOne(req.body);
       res.send(result);
     });
-    //get reviews
     app.get("/users", async (req, res) => {
       const cursor = usersCollection.find({});
       const result = await cursor.toArray();
