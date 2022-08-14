@@ -30,6 +30,7 @@ async function run() {
     const ordersCollection = database.collection("orders");
     const usersCollection = database.collection("users");
     const reviewsCollection = database.collection("reviews");
+    const payemntCollection = database.collection("payment");
 
     //getproperty
     app.get("/properties", async (req, res) => {
@@ -66,12 +67,12 @@ async function run() {
     });
     //get my orders
     app.get("/orders/:email", async (req, res) => {
-      console.log(req.params.email);
       const result = await ordersCollection
         .find({ email: req.params.email })
         .toArray();
       res.send(result);
     });
+
     //delete orders
     app.delete("/orders/:id", async (req, res) => {
       const id = req.params.id;
@@ -95,14 +96,12 @@ async function run() {
     //post reviews
     app.post("/reviews", async (req, res) => {
       const review = req.body;
-      console.log(review);
       const result = await reviewsCollection.insertOne(review);
       res.json(result);
     });
     //post users
     app.post("/users", async (req, res) => {
       const result = await usersCollection.insertOne(req.body);
-      console.log(result);
       res.json(result);
     });
     //get allorder
@@ -111,7 +110,13 @@ async function run() {
       const users = await cursor.toArray();
       res.send(users);
     });
-
+    //delete orders
+    app.delete("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      res.json(result);
+    });
     //put admin
     app.put("/makeAdmin", async (req, res) => {
       const filter = { email: req.body.email };
@@ -120,22 +125,9 @@ async function run() {
         const documents = await usersCollection.updateOne(filter, {
           $set: { role: "admin" },
         });
-        console.log(documents);
       }
 
       res.json(result);
-    });
-    //updatestatus
-    app.put("/statusUpdate/:id", async (req, res) => {
-      const filter = { _id: ObjectId(req.params.id) };
-      console.log(req.params.id);
-      const result = await ordersCollection.updateOne(filter, {
-        $set: {
-          status: req.body.status,
-        },
-      });
-      res.send(result);
-      console.log(result);
     });
 
     //admin check
@@ -144,20 +136,52 @@ async function run() {
       const result = await usersCollection
         .find({ email: req.params.email })
         .toArray();
-      console.log(result);
       res.send(result);
     });
+
+    //getpaymentid
+    app.get("/order/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await ordersCollection.findOne(query);
+      res.json(result);
+    });
+
     //PAYMENT
     app.post("/create-payment-intent", async (req, res) => {
-      const order = req.body;
-      const total = order.amount;
+      const paymentInfo = req.body;
+      const amount = paymentInfo.price * 100;
+
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: total * 100,
         currency: "usd",
+        amount: "amount",
         payment_method_types: ["card"],
       });
 
-      res.send({ clientSecret: paymentIntent.client_secret });
+      res.json({ clientSecret: paymentIntent.client_secret });
+    });
+    // update order status
+    app.put("/orderStatus/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const updateDoc = {
+        $set: { status: "Confirm" },
+      };
+      const result = await ordersCollection.updateOne(filter, updateDoc);
+      res.json(result);
+    });
+    //payment
+    app.put("/order/:id", async (req, res) => {
+      const id = req.params.id;
+      const payment = req.body;
+      const filter = { _id: ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          payment: payment,
+        },
+      };
+      const result = await ordersCollection.updateOne(filter, updateDoc);
+      res.json(result);
     });
   } finally {
   }
